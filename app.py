@@ -9,6 +9,8 @@ import imagehash
 import random 
 from gpt3 import generate_caption,generate_prompt
 from utils import CAPTION_CATEGORIES,check_image
+from flask_cors import CORS, cross_origin
+
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/test.db'
@@ -32,11 +34,14 @@ feature_extractor = FeatureExtractor()
 model = get_model()
 
 
-
 @app.route("/",methods=['GET', 'POST'])
+@cross_origin()
 def home():
     if request.method=="POST":
         category = random.choice(CAPTION_CATEGORIES).lower()
+        category = request.form.get("category").lower()
+        if not category in CAPTION_CATEGORIES:
+            return jsonify({"err":"Chosen category doesn't exist."}),400
 
         try :
             is_valid = check_image(request)
@@ -67,7 +72,7 @@ def home():
             image_caption= AIImageCaption.query.filter_by(caption=random_caption,category=category).first()
             if image_caption:
                 ai_generated_captions = image_caption.gen_caption.split("<>")
-                return jsonify({"caption":ai_generated_captions})
+                return jsonify({"caption":ai_generated_captions[0]})
 
             prompt = generate_prompt(random_caption,category)
             ai_generated_caption = generate_caption(prompt)
@@ -78,7 +83,7 @@ def home():
             db.session.add(ai_captions)
             db.session.commit()
 
-            return jsonify({"caption": ai_generated_caption})
+            return jsonify({"caption": ai_generated_caption[0]})
 
 
         except Exception as e:

@@ -1,6 +1,6 @@
 from PIL import Image
 
-CAPTION_CATEGORIES = ["happy","inspiring","sad","motivation","sarcastic","mind-blowing","real life"]
+CAPTION_CATEGORIES = ["happy","sarcastic","sad","exciting","angry","romantic","nostalgic","motivational"]
 
 def check_image(request):
     f = request.files.get('image')
