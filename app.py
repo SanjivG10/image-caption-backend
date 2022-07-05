@@ -10,6 +10,7 @@ import random
 from gpt3 import generate_caption,generate_prompt
 from utils import CAPTION_CATEGORIES,check_image
 from flask_cors import CORS, cross_origin
+import os
 
 
 app = Flask(__name__)
@@ -26,7 +27,6 @@ class AIImageCaption(db.Model):
     category = db.Column(db.Text)
     gen_caption = db.Column(db.Text)
 
-db.create_all()
 
 MAX_LENGTH = 5
 
@@ -95,4 +95,5 @@ def home():
     }) , 405
 
 if __name__=="__main__":
-    app.run(debug=True)
+    db.create_all()
+    app.run(debug=os.getenv("DEBUG",True))
