@@ -69,6 +69,8 @@ train_all_val_all_bz_2_epoch_10_inject_init.pth.tar
 
 *.pth 
 model_data/
+myself.jpg
+image.PNG
 # Django stuff:
 *.log
 local_settings.py

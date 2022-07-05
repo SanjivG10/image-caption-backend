@@ -43,18 +43,9 @@ class FeatureExtractor:
       model.eval()
       return model
   
-  def get_actual_image(self, image_path):
-      if image_path.startswith('http'):
-          path = requests.get(image_path, stream=True).raw
-      else:
-          path = image_path
-      
-      return path
 
   def _image_transform(self, image_path):
-      path = self.get_actual_image(image_path)
-
-      img = Image.open(path)
+      img = Image.open(image_path)
       img = img.resize((self.TARGET_IMAGE_SIZE[0],self.TARGET_IMAGE_SIZE[1]))
       img = img.convert('RGB')
       im = np.array(img).astype(np.float32)
@@ -113,7 +104,6 @@ class FeatureExtractor:
       im, im_scale = self._image_transform(image_path)
       img_tensor, im_scales = [im], [im_scale]
       current_img_list = to_image_list(img_tensor, size_divisible=32)
-    #   current_img_list = current_img_list.to('cuda')
       with torch.no_grad():
           output = self.detection_model(current_img_list)
       feat_list = self._process_feature_extraction(output, im_scales, 
