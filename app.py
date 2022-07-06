@@ -9,13 +9,14 @@ import imagehash
 import random 
 from gpt3 import generate_caption,generate_prompt
 from utils import CAPTION_CATEGORIES,check_image
-from flask_cors import CORS, cross_origin
+from flask_cors import CORS,cross_origin
 import os
 
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/test.db'
 db = SQLAlchemy(app)
+CORS(app,origins="*")
 
 class ImageCaption(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -33,9 +34,8 @@ MAX_LENGTH = 5
 feature_extractor = FeatureExtractor()
 model = get_model()
 
-
+@cross_origin(origins="*")
 @app.route("/",methods=['GET', 'POST'])
-@cross_origin()
 def home():
     if request.method=="POST":
         category = random.choice(CAPTION_CATEGORIES).lower()
@@ -94,6 +94,3 @@ def home():
         "err":"METHOD is not supported"
     }) , 405
 
-if __name__=="__main__":
-    db.create_all()
-    app.run(debug=os.getenv("DEBUG",True))
