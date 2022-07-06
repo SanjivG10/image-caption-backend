@@ -38,12 +38,12 @@ model = get_model()
 @app.route("/",methods=['GET', 'POST'])
 def home():
     if request.method=="POST":
-        category = random.choice(CAPTION_CATEGORIES).lower()
-        category = request.form.get("category").lower()
-        if not category in CAPTION_CATEGORIES:
-            return jsonify({"err":"Chosen category doesn't exist."}),400
 
         try :
+            category = random.choice(CAPTION_CATEGORIES).lower()
+            category = request.form.get("category",CAPTION_CATEGORIES[0]).lower()
+            if not category in CAPTION_CATEGORIES:
+                return jsonify({"err":"Chosen category doesn't exist."}),400
             is_valid = check_image(request)
             if not is_valid:
                 return jsonify({"err": "bad request"
