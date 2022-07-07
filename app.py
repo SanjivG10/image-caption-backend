@@ -50,7 +50,6 @@ def home():
             response = parse_box_cap_scores(image_results[0],idx_to_token)
             captions = get_caption_from_res(response)
             random_caption = random.choice(captions)
-            random_caption = captions[0]
             image_caption = AIImageCaption.query.filter_by(caption=random_caption,category=category).first()
             if image_caption:
                 ai_generated_captions = image_caption.gen_caption.split("{}")
