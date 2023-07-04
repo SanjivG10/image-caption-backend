@@ -13,6 +13,9 @@ import botocore
 from gpt3 import generate_caption
 from utils import CAPTION_CATEGORIES
 
+caption = get_image_caption_from_ml("./girrafe.jpg", False)
+print("FIRST GENERATION => ", caption)
+
 AWS_ACCESS_KEY_ID = os.getenv("AMAZON_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AMAZON_ACCESS_KEY_SECRET")
 
