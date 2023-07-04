@@ -1,20 +1,16 @@
 import datetime
+import os
 import random
 
 import boto3
+import botocore
 from flask import Flask, jsonify, request
 from flask_cors import CORS, cross_origin
 from flask_sqlalchemy import SQLAlchemy
-from utils import get_image_caption_from_ml
-import os
-import botocore
 
 # from neuraltalk import FeatureExtractor
 from gpt3 import generate_caption
-from utils import CAPTION_CATEGORIES
-
-caption = get_image_caption_from_ml("./girrafe.jpg", False)
-print("FIRST GENERATION => ", caption)
+from utils import CAPTION_CATEGORIES, get_image_caption_from_ml
 
 AWS_ACCESS_KEY_ID = os.getenv("AMAZON_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AMAZON_ACCESS_KEY_SECRET")
