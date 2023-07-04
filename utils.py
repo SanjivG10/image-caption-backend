@@ -26,10 +26,13 @@ def open_image_from_url(url):
     return image
 
 
-def get_image_caption_from_ml(image):
+def get_image_caption_from_ml(image, from_url=True):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Opening Raw Image")
-    raw_image = open_image_from_url(image)
+    if from_url:
+        raw_image = open_image_from_url(image)
+    else:
+        raw_image = Image.open(image)
     print("Raw Image Downloaded and loaded")
     model, vis_processors, _ = load_model_and_preprocess(
         name="blip_caption", model_type="base_coco", is_eval=True, device=device
