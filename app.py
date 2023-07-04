@@ -14,6 +14,9 @@ from utils import CAPTION_CATEGORIES, get_image_caption_from_ml
 
 AWS_ACCESS_KEY_ID = os.getenv("AMAZON_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AMAZON_ACCESS_KEY_SECRET")
+debug = os.getenv("debug")
+if debug:
+    debug = True
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:////tmp/test.db"
@@ -121,5 +124,6 @@ def home():
     return jsonify({"err": "METHOD is not supported"}), 405
 
 
-if __name__ == "__main__":
-    app.run(debug=True)
+if debug:
+    if __name__ == "__main__":
+        app.run(debug=True)
