@@ -20,10 +20,10 @@ def generate_caption(description, category):
             THEME: {category}
             IMAGE DESCRIPTION: \n  {description}
             
-            Image Captions separated by captions: 
+            Image Captions separated by comma: 
             """,
             },
         ],
     )
 
-    return completion
+    return completion.choices[0].message

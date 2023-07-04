@@ -4,3 +4,4 @@ flask
 flask_sqlalchemy
 flask_cors
 torch
+boto3

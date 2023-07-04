@@ -1,40 +1,25 @@
-from flask import Flask, request
-from flask import jsonify
+import datetime
+import random
 
-# from neuraltalk import FeatureExtractor
-from caption import get_model, get_captions
+import boto3
+from flask import Flask, jsonify, request
+from flask_cors import CORS, cross_origin
 from flask_sqlalchemy import SQLAlchemy
 from PIL import Image
-import imagehash
-import random
+from utils import get_image_caption_from_ml
+import os
+
+# from neuraltalk import FeatureExtractor
 from gpt3 import generate_caption
 from utils import CAPTION_CATEGORIES, check_image
-from flask_cors import CORS, cross_origin
 
-from lavis.models import model_zoo, load_model_and_preprocess
-import torch
-from PIL import Image
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-raw_image = Image.open("./girrafe.jpg").convert("RGB")
-model, vis_processors, _ = load_model_and_preprocess(
-    name="blip_caption", model_type="base_coco", is_eval=True, device=device
-)
-image = vis_processors["eval"](raw_image).unsqueeze(0).to(device)
-caption = model.generate({"image": image})
-print(caption)
-
+AWS_ACCESS_KEY_ID = os.getenv("AMAZON_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AMAZON_ACCESS_KEY_SECRET")
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:////tmp/test.db"
 db = SQLAlchemy(app)
 CORS(app, origins="*")
-
-
-class ImageCaption(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    hash = db.Column(db.Text)
-    captions = db.Column(db.Text)
 
 
 class AIImageCaption(db.Model):
@@ -44,7 +29,32 @@ class AIImageCaption(db.Model):
     gen_caption = db.Column(db.Text)
 
 
-MAX_LENGTH = 5
+@app.route("/upload", methods=["GET", "POST"])
+def upload():
+    if request.method == "POST":
+        try:
+            file_extension = request.form.get("image").rsplit(".", 1)[-1]
+            current_date = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            filename = f"{current_date}.{file_extension}"
+            s3_client = boto3.client(
+                "s3",
+                aws_access_key_id=AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+            )
+
+            presigned_url = s3_client.generate_presigned_url(
+                ClientMethod="put_object",
+                Params={
+                    "Bucket": filename,
+                    "Key": filename,
+                    "ContentType": f"image/{file_extension}",
+                },
+                ExpiresIn=3600,  # URL expiration time in seconds (e.g., 1 hour)
+            )
+
+            return jsonify({"presigned_url": presigned_url, "filename": filename})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
 
 @cross_origin(origins="*")
@@ -60,42 +70,35 @@ def home():
             if not is_valid:
                 return jsonify({"err": "bad request"}), 400
 
-            image = request.files.get("image")
-            hash = str(imagehash.average_hash(Image.open(image)))
-            image_caption = ImageCaption.query.filter_by(hash=hash).first()
+            image = request.form.get("image")
 
-            captions = []
-            if image_caption:
-                captions = image_caption.captions
-                captions = captions.split("-")
-            else:
-                # feature = feature_extractor(image)
-                # captions = get_captions(model, feature)
-                captions = []
-                new_caption = ImageCaption(
-                    hash=hash, captions="-".join(caption for caption in captions)
-                )
-                db.session.add(new_caption)
-                db.session.commit()
+            image_caption_from_image = get_image_caption_from_ml(image)
 
-            if len(captions) == 0:
-                return jsonify({"err": "couldn't infer anything from the image"}), 500
+            if not image or not image_caption_from_image:
+                return jsonify({"err": "Couldn't infer anything from the image"}), 500
 
-            random_caption = random.choice(captions)
-            ai_generated_caption = generate_caption(random_caption, category)
+            ai_generated_captions = generate_caption(image_caption_from_image, category)
 
             ai_caption = AIImageCaption(
                 category=category,
-                caption=random_caption,
-                gen_caption=ai_generated_caption,
+                caption=image_caption_from_image,
+                gen_caption=ai_generated_captions,
             )
             db.session.add(ai_caption)
             db.session.commit()
+            captions_array = ai_generated_captions.split(",")
+            response = [
+                {"caption": caption, type: category} for caption in captions_array
+            ]
 
-            return jsonify({"caption": ai_generated_caption[0]})
+            return jsonify(response)
 
         except Exception as e:
             print(e)
             return jsonify({"err": str(e)}), 500
 
     return jsonify({"err": "METHOD is not supported"}), 405
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
