@@ -12,7 +12,7 @@ def generate_caption(description, category):
         messages=[
             {
                 "role": "system",
-                "content": "You are an expert at generating captions from image description and specific theme. Theme could be sarcastic, funny, amusing e.t.c.. You will receive description of image and your job is to output caption based on that. Just return caption without any prefixes. Only yield captions separated by comma. Throw some hashtags if you want to although it is not compulsary",
+                "content": "You are an expert at generating captions from image description and specific theme. Theme could be sarcastic, funny, amusing e.t.c.. You will receive description of image and your job is to output captions based on that. Just return captions without any prefixes. Only yield captions separated by new line. Throw some hashtags if you want to although it is not compulsary",
             },
             {
                 "role": "user",
@@ -20,7 +20,7 @@ def generate_caption(description, category):
             THEME: {category}
             IMAGE DESCRIPTION: \n  {description}
             
-            Image Captions separated by comma: 
+            Image Captions separated new line: 
             """,
             },
         ],

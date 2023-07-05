@@ -109,7 +109,7 @@ def home():
             )
             db.session.add(ai_caption)
             db.session.commit()
-            captions_array = ai_generated_captions.split(",")
+            captions_array = ai_generated_captions.split("\n")
             response = [
                 {"caption": caption.strip(), "type": category}
                 for caption in captions_array
