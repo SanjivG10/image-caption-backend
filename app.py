@@ -1,6 +1,7 @@
 import datetime
 import os
-import random
+import bcrypt
+import jwt
 
 import boto3
 import botocore
@@ -19,7 +20,8 @@ if debug:
     debug = True
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:////tmp/test.db"
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:////tmp/user.db"
+app.config["SECRET_KEY"] = "HarryMaguire"  # Set your own secret key
 CORS(app, origins="*")
 
 
@@ -32,6 +34,27 @@ class AIImageCaption(db.Model):
     url = db.Column(db.Text)
     category = db.Column(db.Text)
     gen_caption = db.Column(db.Text)
+    user = db.Column(db.Text)
+
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(255), nullable=False)
+
+    def __init__(self, email, password):
+        self.email = email
+        self.password = password
+
+    def check_password(self, password):
+        return bcrypt.checkpw(password.encode("utf-8"), self.password)
+
+    def generate_token(self):
+        payload = {
+            "email": self.email,
+            "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1000),
+        }
+        return jwt.encode(payload, app.config["SECRET_KEY"], algorithm="HS256")
 
 
 with app.app_context():
@@ -46,9 +69,92 @@ def get_caption_by_url(url):
         return None
 
 
+@app.route("/register", methods=["POST"])
+def register():
+    try:
+        data = request.get_json()
+        email = data.get("email")
+        password = data.get("password")
+
+        if not email or not password:
+            return jsonify({"err": "Email and password are required fields."}), 400
+
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            return (
+                jsonify(
+                    {"err": "Email already exists. Please choose a different email."}
+                ),
+                409,
+            )
+
+        hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+
+        user = User(email=email, password=hashed_password)
+        db.session.add(user)
+        db.session.commit()
+
+        token = user.generate_token()
+
+        return jsonify({"token": token})
+
+    except Exception as e:
+        return jsonify({"err": str(e)}), 500
+
+
+@app.route("/login", methods=["POST"])
+def login():
+    try:
+        data = request.get_json()
+        email = data.get("email")
+        password = data.get("password")
+
+        if not email or not password:
+            return jsonify({"err": "Email and password are required fields."}), 400
+
+        user = User.query.filter_by(email=email).first()
+        if not user or not user.check_password(password):
+            return jsonify({"err": "Invalid email or password."}), 401
+
+        token = user.generate_token()
+
+        return jsonify({"token": token})
+
+    except Exception as e:
+        return jsonify({"err": str(e)}), 500
+
+
+def authenticate_request():
+    token = request.headers.get("Authorization")
+    if not token:
+        return jsonify({"err": "Authorization token is missing."}), 401
+
+    try:
+        payload = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])
+        email = payload["email"]
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            return jsonify({"err": "Invalid token."}), 401
+
+        return user
+
+    except jwt.ExpiredSignatureError:
+        return jsonify({"err": "Token has expired."}), 401
+
+    except jwt.InvalidTokenError:
+        return jsonify({"err": "Invalid token."}), 401
+
+    except Exception as e:
+        print(str(e))
+        return jsonify({"err": str(e)}), 401
+
+
 @app.route("/upload", methods=["GET", "POST"])
 def upload():
     if request.method == "POST":
+        user_or_err = authenticate_request()
+        if not isinstance(user_or_err, User):
+            return user_or_err
         try:
             file_extension = request.form.get("image").rsplit(".", 1)[-1]
             current_date = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
@@ -81,6 +187,11 @@ def upload():
 @app.route("/", methods=["GET", "POST"])
 def home():
     if request.method == "POST":
+        user_or_err = authenticate_request()
+        if not isinstance(user_or_err, User):
+            return user_or_err
+        email = user_or_err.email
+
         try:
             category = request.form.get("category", CAPTION_CATEGORIES[0]).lower()
             if not category in CAPTION_CATEGORIES:
@@ -106,6 +217,7 @@ def home():
                 caption=image_caption_from_image,
                 gen_caption=ai_generated_captions,
                 url=image_url,
+                user=email,
             )
             db.session.add(ai_caption)
             db.session.commit()
